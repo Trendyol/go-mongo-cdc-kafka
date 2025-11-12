@@ -64,19 +64,23 @@ func convertSizeUnitToByte(str string) (int, error) {
 	}
 }
 
-func ConvertIDToBytes(id interface{}) []byte {
-	switch v := id.(type) {
+func DocumentIDToBytes(id interface{}) []byte {
+	var docID string
+	switch id := id.(type) {
 	case primitive.ObjectID:
-		return []byte(v.Hex())
+		docID = id.Hex()
+	case int:
+		docID = strconv.Itoa(id)
+	case int32:
+		docID = strconv.FormatInt(int64(id), 10)
+	case int64:
+		docID = strconv.FormatInt(id, 10)
 	case string:
-		return []byte(v)
-	case int, int32, int64:
-		return []byte(fmt.Sprintf("%v", v))
-	case []byte:
-		return v
-	case primitive.Binary:
-		return v.Data
+		docID = id
 	default:
-		return []byte(fmt.Sprintf("%v", v))
+		docID = fmt.Sprintf("%v", id)
+		logger.Log.Warn("Unexpected document ID type: %T, value: %v", id, id)
 	}
+
+	return Byte(docID)
 }

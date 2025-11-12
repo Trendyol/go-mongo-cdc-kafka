@@ -15,7 +15,6 @@ type Event struct {
 	Collection    string
 	DocumentID    interface{}
 	FullDocument  bson.M
-	OldDocument   bson.M
 	EventTime     time.Time
 	PartitionID   int
 

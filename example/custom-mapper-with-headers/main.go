@@ -17,15 +17,6 @@ import (
 )
 
 func customMapper(event mongo.Event) []message.KafkaMessage {
-	if event.IsDelete {
-		return []message.KafkaMessage{
-			{
-				Key:   helpers.ConvertIDToBytes(event.DocumentID),
-				Value: nil,
-			},
-		}
-	}
-
 	jsonBytes, err := jsoniter.Marshal(event.FullDocument)
 	if err != nil {
 		if logger.Log != nil {
@@ -54,7 +45,7 @@ func customMapper(event mongo.Event) []message.KafkaMessage {
 
 	return []message.KafkaMessage{
 		{
-			Key:   helpers.ConvertIDToBytes(event.DocumentID),
+			Key:   helpers.DocumentIDToBytes(event.DocumentID),
 			Value: jsonBytes,
 			Headers: []kafka.Header{
 				{

@@ -105,9 +105,6 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 	}
 	c.ApplyDefaults()
 
-	copyOfConfig := c.Kafka
-	printConfiguration(copyOfConfig)
-
 	connector := &connector{
 		mapper: cb.mapper,
 		config: c,
@@ -119,6 +116,9 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mongo cdc connector: %w", err)
 	}
+
+	copyOfConfig := c.Kafka
+	printConfiguration(copyOfConfig)
 
 	connector.mongoCDC = mongoCDC
 

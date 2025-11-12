@@ -7,20 +7,24 @@ import (
 
 	mongokafka "github.com/Trendyol/go-mongo-cdc-kafka"
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
-	"github.com/Trendyol/go-mongo-cdc-kafka/kafka"
 	cdcConfig "github.com/Trendyol/go-mongo-cdc/config"
-	sKafka "github.com/segmentio/kafka-go"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-func customCompletionHandler(messages []sKafka.Message, err error) {
-	if err != nil {
-		log.Printf("Batch failed: %d messages, error: %v\n", len(messages), err)
-	} else {
-		log.Printf("Batch succeeded: %d messages\n", len(messages))
-	}
-}
-
 func main() {
+	zapConfig := zap.NewProductionConfig()
+	zapConfig.EncoderConfig.TimeKey = "timestamp"
+	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	zapConfig.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+
+	zapLogger, err := zapConfig.Build()
+	if err != nil {
+		log.Fatal("failed to create zap logger:", err)
+	}
+	defer zapLogger.Sync()
+
 	cfg := config.Connector{
 		CDC: cdcConfig.Config{
 			MongoDB: cdcConfig.MongoDB{
@@ -47,16 +51,11 @@ func main() {
 			Topic:                       "example-topic",
 			ProducerBatchBytes:          "900kb",
 			ProducerBatchTickerDuration: 10 * time.Second,
-			RejectionLog: config.RejectionLog{
-				Topic:        "rejection-log-topic",
-				IncludeValue: true,
-			},
 		},
 	}
 
 	connector, err := mongokafka.NewConnectorBuilder(cfg).
-		SetSinkResponseHandler(kafka.NewRejectionLogSinkResponseHandler()).
-		SetCompletionHandler(customCompletionHandler).
+		SetLogger(zapLogger).
 		Build()
 
 	if err != nil {
