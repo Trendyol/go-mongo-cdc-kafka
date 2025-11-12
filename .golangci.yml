@@ -1,0 +1,25 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+
+linters-settings:
+  errcheck:
+    check-blank: false
+    check-type-assertions: false
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
