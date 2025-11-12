@@ -1,57 +1,39 @@
 package metric
 
 import (
-	"sync/atomic"
-
+	"github.com/Trendyol/go-mongo-cdc-kafka/kafka"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-type Metric interface {
-	SetKafkaConnectorLatency(latency int64)
-	SetBatchProduceLatency(latency int64)
-	GetKafkaConnectorLatency() int64
-	GetBatchProduceLatency() int64
+const Name = "go_mongo_cdc_kafka"
+
+var (
+	kafkaConnectorLatencyGauge = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: prometheus.BuildFQName(Name, "kafka_connector_latency_ms", "current"),
+			Help: "Kafka connector latency ms",
+		},
+	)
+
+	batchProduceLatencyGauge = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: prometheus.BuildFQName(Name, "kafka_connector_batch_produce_latency_ms", "current"),
+			Help: "Kafka connector batch produce latency ms",
+		},
+	)
+)
+
+type PrometheusMetricsRecorder struct{}
+
+func NewMetricsRecorder() kafka.MetricsRecorder {
+	return &PrometheusMetricsRecorder{}
 }
 
-type metric struct {
-	kafkaConnectorLatency int64
-	batchProduceLatency   int64
-
-	kafkaConnectorLatencyGauge prometheus.Gauge
-	batchProduceLatencyGauge   prometheus.Gauge
+func (m *PrometheusMetricsRecorder) RecordKafkaConnectorLatency(latencyMs int64) {
+	kafkaConnectorLatencyGauge.Set(float64(latencyMs))
 }
 
-func NewMetric() Metric {
-	return &metric{
-		kafkaConnectorLatencyGauge: promauto.NewGauge(prometheus.GaugeOpts{
-			Namespace: "go_mongo_kafka",
-			Name:      "connector_latency_ms_current",
-			Help:      "Time to adding to the batch",
-		}),
-		batchProduceLatencyGauge: promauto.NewGauge(prometheus.GaugeOpts{
-			Namespace: "go_mongo_kafka",
-			Name:      "batch_produce_latency_ms_current",
-			Help:      "Time to produce messages in the batch",
-		}),
-	}
+func (m *PrometheusMetricsRecorder) RecordBatchProduceLatency(latencyMs int64) {
+	batchProduceLatencyGauge.Set(float64(latencyMs))
 }
-
-func (m *metric) SetKafkaConnectorLatency(latency int64) {
-	atomic.StoreInt64(&m.kafkaConnectorLatency, latency)
-	m.kafkaConnectorLatencyGauge.Set(float64(latency))
-}
-
-func (m *metric) SetBatchProduceLatency(latency int64) {
-	atomic.StoreInt64(&m.batchProduceLatency, latency)
-	m.batchProduceLatencyGauge.Set(float64(latency))
-}
-
-func (m *metric) GetKafkaConnectorLatency() int64 {
-	return atomic.LoadInt64(&m.kafkaConnectorLatency)
-}
-
-func (m *metric) GetBatchProduceLatency() int64 {
-	return atomic.LoadInt64(&m.batchProduceLatency)
-}
-

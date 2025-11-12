@@ -8,7 +8,6 @@ import (
 
 	gKafka "github.com/Trendyol/go-mongo-cdc-kafka/kafka"
 	"github.com/Trendyol/go-mongo-cdc-kafka/kafka/message"
-	"github.com/Trendyol/go-mongo-cdc-kafka/metric"
 	"github.com/Trendyol/go-mongo-cdc/logger"
 	"github.com/Trendyol/go-mongo-cdc/stream"
 	"github.com/segmentio/kafka-go"
@@ -18,7 +17,7 @@ type Batch struct {
 	sinkResponseHandler gKafka.SinkResponseHandler
 	batchTicker         *time.Ticker
 	Writer              *kafka.Writer
-	metric              metric.Metric
+	metricsRecorder     gKafka.MetricsRecorder
 	checkpointCommit    func()
 	messages            []kafka.Message
 	currentMessageBytes int64
@@ -33,14 +32,14 @@ func newBatch(
 	writer *kafka.Writer,
 	batchLimit int,
 	batchBytes int64,
-	metric metric.Metric,
+	metricsRecorder gKafka.MetricsRecorder,
 	checkpointCommit func(),
 	sinkResponseHandler gKafka.SinkResponseHandler,
 ) *Batch {
 	batch := &Batch{
 		batchTickerDuration: batchTime,
 		batchTicker:         time.NewTicker(batchTime),
-		metric:              metric,
+		metricsRecorder:     metricsRecorder,
 		checkpointCommit:    checkpointCommit,
 		messages:            make([]kafka.Message, 0, batchLimit),
 		Writer:              writer,
@@ -75,7 +74,7 @@ func (b *Batch) AddMessages(ctx *stream.ListenerContext, messages []kafka.Messag
 	b.flushLock.Unlock()
 
 	if isLastChunk {
-		b.metric.SetKafkaConnectorLatency(time.Since(eventTime).Milliseconds())
+		b.metricsRecorder.RecordKafkaConnectorLatency(time.Since(eventTime).Milliseconds())
 	}
 
 	if len(b.messages) >= b.batchLimit || b.currentMessageBytes >= b.batchBytes {
@@ -97,7 +96,7 @@ func (b *Batch) FlushMessages() {
 			panic(err)
 		}
 
-		b.metric.SetBatchProduceLatency(time.Since(startedTime).Milliseconds())
+		b.metricsRecorder.RecordBatchProduceLatency(time.Since(startedTime).Milliseconds())
 
 		if b.sinkResponseHandler != nil {
 			switch e := err.(type) {

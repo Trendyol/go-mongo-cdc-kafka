@@ -6,7 +6,6 @@ import (
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
 	"github.com/Trendyol/go-mongo-cdc-kafka/helpers"
 	gKafka "github.com/Trendyol/go-mongo-cdc-kafka/kafka"
-	"github.com/Trendyol/go-mongo-cdc-kafka/metric"
 	"github.com/Trendyol/go-mongo-cdc/stream"
 	"github.com/segmentio/kafka-go"
 )
@@ -18,7 +17,7 @@ type Producer struct {
 func NewProducer(
 	kafkaClient gKafka.Client,
 	config *config.Connector,
-	metric metric.Metric,
+	metricsRecorder gKafka.MetricsRecorder,
 	checkpointCommit func(),
 	sinkResponseHandler gKafka.SinkResponseHandler,
 	completionHandler func(messages []kafka.Message, err error),
@@ -39,7 +38,7 @@ func NewProducer(
 			writer,
 			config.Kafka.ProducerBatchSize,
 			int64(helpers.ResolveUnionIntOrStringValue(config.Kafka.ProducerBatchBytes)),
-			metric,
+			metricsRecorder,
 			checkpointCommit,
 			sinkResponseHandler,
 		),
@@ -62,8 +61,4 @@ func (p *Producer) Produce(
 func (p *Producer) Close() error {
 	p.ProducerBatch.Close()
 	return p.ProducerBatch.Writer.Close()
-}
-
-func (p *Producer) GetMetric() metric.Metric {
-	return p.ProducerBatch.metric
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Trendyol/go-mongo-cdc/logger"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func ResolveUnionIntOrStringValue(input any) int {
@@ -60,5 +61,22 @@ func convertSizeUnitToByte(str string) (int, error) {
 		return int(size * 1024 * 1024 * 1024), nil
 	default:
 		return 0, fmt.Errorf("unsupported unit: %s, you can specify one of B, KB, MB and GB", unit)
+	}
+}
+
+func ConvertIDToBytes(id interface{}) []byte {
+	switch v := id.(type) {
+	case primitive.ObjectID:
+		return []byte(v.Hex())
+	case string:
+		return []byte(v)
+	case int, int32, int64:
+		return []byte(fmt.Sprintf("%v", v))
+	case []byte:
+		return v
+	case primitive.Binary:
+		return v.Data
+	default:
+		return []byte(fmt.Sprintf("%v", v))
 	}
 }

@@ -131,9 +131,9 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 		mongoCDC.Commit()
 	}
 
-	m := metric.NewMetric()
+	metricsRecorder := metric.NewMetricsRecorder()
 
-	prod, err := producer.NewProducer(kafkaClient, c, m, checkpointCommit, cb.sinkResponseHandler, cb.completionHandler)
+	prod, err := producer.NewProducer(kafkaClient, c, metricsRecorder, checkpointCommit, cb.sinkResponseHandler, cb.completionHandler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create producer: %w", err)
 	}
