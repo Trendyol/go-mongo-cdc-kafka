@@ -1,8 +1,18 @@
 package mongokafka
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
+
+	jsoniter "github.com/json-iterator/go"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 
 	cdc "github.com/Trendyol/go-mongo-cdc"
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
@@ -22,19 +32,10 @@ type Connector interface {
 }
 
 type connector struct {
-	mongoCDC            cdc.Connector
-	mapper              Mapper
-	producer            producer.Producer
-	config              *config.Config
-	metric              metric.Metric
-	sinkResponseHandler kafka.SinkResponseHandler
-	completionHandler   func(messages []sKafka.Message, err error)
-}
-
-func NewConnector(cfg config.Config, mapper Mapper) (Connector, error) {
-	return NewConnectorBuilder(cfg).
-		SetMapper(mapper).
-		Build()
+	mongoCDC cdc.Connector
+	mapper   Mapper
+	producer producer.Producer
+	config   *config.Connector
 }
 
 func (c *connector) Start(ctx context.Context) {
@@ -58,16 +59,18 @@ func (c *connector) Close() {
 }
 
 type ConnectorBuilder struct {
-	config              config.Config
+	config              any
 	mapper              Mapper
 	sinkResponseHandler kafka.SinkResponseHandler
 	completionHandler   func(messages []sKafka.Message, err error)
 }
 
-func NewConnectorBuilder(cfg config.Config) *ConnectorBuilder {
+func NewConnectorBuilder(cfg any) *ConnectorBuilder {
 	return &ConnectorBuilder{
-		config: cfg,
-		mapper: DefaultMapper,
+		config:              cfg,
+		mapper:              DefaultMapper,
+		sinkResponseHandler: nil,
+		completionHandler:   nil,
 	}
 }
 
@@ -88,38 +91,69 @@ func (cb *ConnectorBuilder) SetCompletionHandler(handler func(messages []sKafka.
 	return cb
 }
 
+func (cb *ConnectorBuilder) SetLogger(zapLogger *zap.Logger) *ConnectorBuilder {
+	logger.Log = &logger.Loggers{
+		Zap: zapLogger,
+	}
+	return cb
+}
+
 func (cb *ConnectorBuilder) Build() (Connector, error) {
-	cb.config.ApplyDefaults()
-
-	m := metric.NewMetric()
-
-	kafkaClient, err := kafka.NewClient(&cb.config)
+	c, err := newConfig(cb.config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kafka client: %w", err)
+		return nil, err
+	}
+	c.ApplyDefaults()
+
+	copyOfConfig := c.Kafka
+	printConfiguration(copyOfConfig)
+
+	connector := &connector{
+		mapper: cb.mapper,
+		config: c,
 	}
 
-	prod, err := producer.NewProducer(kafkaClient, &cb.config, m, cb.sinkResponseHandler, cb.completionHandler)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create producer: %w", err)
-	}
+	c.CDC.Checkpoint.Type = "manual"
 
-	c := &connector{
-		producer:            prod,
-		mapper:              cb.mapper,
-		config:              &cb.config,
-		metric:              m,
-		sinkResponseHandler: cb.sinkResponseHandler,
-		completionHandler:   cb.completionHandler,
-	}
-
-	mongoCDC, err := cdc.NewConnector(cb.config.CDC, c.listener)
+	mongoCDC, err := cdc.NewConnector(c.CDC, connector.listener)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mongo cdc connector: %w", err)
 	}
 
-	c.mongoCDC = mongoCDC
+	connector.mongoCDC = mongoCDC
 
-	return c, nil
+	kafkaClient, err := createKafkaClient(c)
+	if err != nil {
+		return nil, err
+	}
+
+	checkpointCommit := func() {
+		mongoCDC.Commit()
+	}
+
+	m := metric.NewMetric()
+
+	prod, err := producer.NewProducer(kafkaClient, c, m, checkpointCommit, cb.sinkResponseHandler, cb.completionHandler)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create producer: %w", err)
+	}
+
+	connector.producer = prod
+
+	return connector, nil
+}
+
+func printConfiguration(config config.Kafka) {
+	config.ScramPassword = "*****"
+	configJSON, _ := jsoniter.Marshal(config)
+
+	dst := &bytes.Buffer{}
+	if err := json.Compact(dst, configJSON); err != nil {
+		logger.Log.Error("error while print kafka configuration, err: %v", err)
+		panic(err)
+	}
+
+	logger.Log.Info("using kafka config: %v", dst.String())
 }
 
 func (c *connector) listener(ctx *stream.ListenerContext) error {
@@ -159,4 +193,53 @@ func (c *connector) listener(ctx *stream.ListenerContext) error {
 	}
 
 	return nil
+}
+
+func newConfig(cf any) (*config.Connector, error) {
+	switch v := cf.(type) {
+	case *config.Connector:
+		return v, nil
+	case config.Connector:
+		return &v, nil
+	case string:
+		return newConnectorConfigFromPath(v)
+	default:
+		return nil, errors.New("invalid config")
+	}
+}
+
+func createKafkaClient(cc *config.Connector) (kafka.Client, error) {
+	kafkaClient := kafka.NewClient(cc)
+
+	if !cc.Kafka.AllowAutoTopicCreation {
+		if err := kafkaClient.CheckTopic(cc.Kafka.Topic); err != nil {
+			logger.Log.Error("topic check error: %v", err)
+			return nil, err
+		}
+	}
+
+	return kafkaClient, nil
+}
+
+func newConnectorConfigFromPath(path string) (*config.Connector, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	envPattern := regexp.MustCompile(`\${([^}]+)}`)
+	matches := envPattern.FindAllStringSubmatch(string(file), -1)
+	for _, match := range matches {
+		envVar := match[1]
+		if value, exists := os.LookupEnv(envVar); exists {
+			updatedFile := strings.ReplaceAll(string(file), "${"+envVar+"}", value)
+			file = []byte(updatedFile)
+		}
+	}
+	var c config.Connector
+	err = yaml.Unmarshal(file, &c)
+	if err != nil {
+		return nil, err
+	}
+	c.ApplyDefaults()
+	return &c, nil
 }

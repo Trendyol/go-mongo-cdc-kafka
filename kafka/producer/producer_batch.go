@@ -19,8 +19,8 @@ type Batch struct {
 	batchTicker         *time.Ticker
 	Writer              *kafka.Writer
 	metric              metric.Metric
+	checkpointCommit    func()
 	messages            []kafka.Message
-	contexts            []*stream.ListenerContext
 	currentMessageBytes int64
 	batchTickerDuration time.Duration
 	batchLimit          int
@@ -34,14 +34,15 @@ func newBatch(
 	batchLimit int,
 	batchBytes int64,
 	metric metric.Metric,
+	checkpointCommit func(),
 	sinkResponseHandler gKafka.SinkResponseHandler,
 ) *Batch {
 	batch := &Batch{
 		batchTickerDuration: batchTime,
 		batchTicker:         time.NewTicker(batchTime),
 		metric:              metric,
+		checkpointCommit:    checkpointCommit,
 		messages:            make([]kafka.Message, 0, batchLimit),
-		contexts:            make([]*stream.ListenerContext, 0, batchLimit),
 		Writer:              writer,
 		batchLimit:          batchLimit,
 		batchBytes:          batchBytes,
@@ -67,10 +68,10 @@ func (b *Batch) Close() {
 func (b *Batch) AddMessages(ctx *stream.ListenerContext, messages []kafka.Message, eventTime time.Time, isLastChunk bool) {
 	b.flushLock.Lock()
 	b.messages = append(b.messages, messages...)
-	if isLastChunk {
-		b.contexts = append(b.contexts, ctx)
-	}
 	b.currentMessageBytes += totalSizeOfMessages(messages)
+	if isLastChunk {
+		ctx.Ack()
+	}
 	b.flushLock.Unlock()
 
 	if isLastChunk {
@@ -112,17 +113,11 @@ func (b *Batch) FlushMessages() {
 			}
 		}
 
-		for _, ctx := range b.contexts {
-			if ackErr := ctx.Ack(); ackErr != nil {
-				logger.Log.Error("error while acking message, err: %v", ackErr)
-			}
-		}
-
 		b.messages = b.messages[:0]
-		b.contexts = b.contexts[:0]
 		b.currentMessageBytes = 0
 		b.batchTicker.Reset(b.batchTickerDuration)
 	}
+	b.checkpointCommit()
 }
 
 func (b *Batch) handleWriteError(writeErrors kafka.WriteErrors) {
@@ -187,4 +182,3 @@ func totalSizeOfMessages(messages []kafka.Message) int64 {
 	}
 	return int64(size)
 }
-

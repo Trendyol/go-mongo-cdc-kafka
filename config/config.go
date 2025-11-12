@@ -6,19 +6,17 @@ import (
 	"strconv"
 	"time"
 
+	cdcConfig "github.com/Trendyol/go-mongo-cdc/config"
+	"github.com/Trendyol/go-mongo-cdc/logger"
+
 	"github.com/Trendyol/go-mongo-cdc-kafka/helpers"
 
-	cdcConfig "github.com/Trendyol/go-mongo-cdc/config"
 	"github.com/segmentio/kafka-go"
 )
 
-type Config struct {
-	CDC   cdcConfig.Config `yaml:",inline" mapstructure:",squash"`
-	Kafka Kafka            `yaml:"kafka" mapstructure:"kafka"`
-}
-
 type Kafka struct {
 	ProducerBatchBytes          any           `yaml:"producerBatchBytes"`
+	Topic                       string        `yaml:"topic"`
 	InterCAPath                 string        `yaml:"interCAPath"`
 	InterCA                     string        `yaml:"interCA"`
 	ScramUsername               string        `yaml:"scramUsername"`
@@ -27,7 +25,6 @@ type Kafka struct {
 	RootCA                      string        `yaml:"rootCA"`
 	ClientID                    string        `yaml:"clientID"`
 	Balancer                    string        `yaml:"balancer"`
-	Topic                       string        `yaml:"topic"`
 	Brokers                     []string      `yaml:"brokers"`
 	MetadataTopics              []string      `yaml:"metadataTopics"`
 	RejectionLog                RejectionLog  `yaml:"rejectionLog"`
@@ -63,18 +60,27 @@ func (k *Kafka) GetBalancer() kafka.Balancer {
 	case "Murmur2Balancer":
 		return kafka.Murmur2Balancer{}
 	default:
-		panic(errors.New("invalid kafka balancer method, given: " + k.Balancer))
+		err := errors.New("invalid kafka balancer method, given: " + k.Balancer)
+		logger.Log.Error("error while get kafka balancer, err: %v", err)
+		panic(err)
 	}
 }
 
 func (k *Kafka) GetCompression() int8 {
 	if k.Compression < 0 || k.Compression > 4 {
-		panic(errors.New("invalid kafka compression method, given: " + strconv.Itoa(int(k.Compression))))
+		err := errors.New("invalid kafka compression method, given: " + strconv.Itoa(int(k.Compression)))
+		logger.Log.Error("error while get kafka compression, err: %v", err)
+		panic(err)
 	}
 	return k.Compression
 }
 
-func (c *Config) ApplyDefaults() {
+type Connector struct {
+	Kafka Kafka            `yaml:"kafka" mapstructure:"kafka"`
+	CDC   cdcConfig.Config `yaml:",inline" mapstructure:",squash"`
+}
+
+func (c *Connector) ApplyDefaults() {
 	if c.Kafka.ReadTimeout == 0 {
 		c.Kafka.ReadTimeout = 30 * time.Second
 	}

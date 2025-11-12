@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	cfg := config.Config{
+	cfg := config.Connector{
 		CDC: cdcConfig.Config{
 			MongoDB: cdcConfig.MongoDB{
 				Connection: cdcConfig.Connection{
@@ -23,10 +23,8 @@ func main() {
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
 				TokenSaveInterval:     10 * time.Second,
-				ChangeStreamBatchSize: 500,
 				BootstrapSaveCount:    5000,
 				BootstrapSaveInterval: 10 * time.Second,
-				BootstrapBatchSize:    5000,
 			},
 			Partition: cdcConfig.PartitionConfig{
 				TotalPartition: 5,
@@ -38,7 +36,6 @@ func main() {
 		Kafka: config.Kafka{
 			Brokers:                     []string{"localhost:9092"},
 			Topic:                       "example-topic",
-			ProducerBatchSize:           5000,
 			ProducerBatchBytes:          "900kb",
 			ProducerBatchTickerDuration: 10 * time.Second,
 		},
@@ -57,4 +54,3 @@ func main() {
 	ctx := context.Background()
 	connector.Start(ctx)
 }
-

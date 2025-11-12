@@ -71,7 +71,7 @@ func customMapper(event mongo.Event) []message.KafkaMessage {
 }
 
 func main() {
-	cfg := config.Config{
+	cfg := config.Connector{
 		CDC: cdcConfig.Config{
 			MongoDB: cdcConfig.MongoDB{
 				Connection: cdcConfig.Connection{
@@ -82,10 +82,8 @@ func main() {
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
 				TokenSaveInterval:     10 * time.Second,
-				ChangeStreamBatchSize: 500,
 				BootstrapSaveCount:    5000,
 				BootstrapSaveInterval: 10 * time.Second,
-				BootstrapBatchSize:    5000,
 			},
 			Partition: cdcConfig.PartitionConfig{
 				TotalPartition: 5,
@@ -97,13 +95,12 @@ func main() {
 		Kafka: config.Kafka{
 			Brokers:                     []string{"localhost:9092"},
 			Topic:                       "example-topic",
-			ProducerBatchSize:           5000,
 			ProducerBatchBytes:          "900kb",
 			ProducerBatchTickerDuration: 10 * time.Second,
 		},
 	}
 
-	connector, err := mongokafka.NewConnector(cfg, customMapper)
+	connector, err := mongokafka.NewConnectorBuilder(cfg).SetMapper(customMapper).Build()
 	if err != nil {
 		log.Fatal("failed to create connector:", err)
 	}

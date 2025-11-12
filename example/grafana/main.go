@@ -26,7 +26,7 @@ func main() {
 	// Start continuous seeding in background
 	go continuousSeedMongoDB()
 
-	cfg := config.Config{
+	cfg := config.Connector{
 		CDC: cdcConfig.Config{
 			MongoDB: cdcConfig.MongoDB{
 				Connection: cdcConfig.Connection{
@@ -51,10 +51,8 @@ func main() {
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
 				TokenSaveInterval:     5 * time.Second,
-				ChangeStreamBatchSize: 100,
 				BootstrapSaveCount:    1000,
 				BootstrapSaveInterval: 10 * time.Second,
-				BootstrapBatchSize:    1000,
 			},
 			Partition: cdcConfig.PartitionConfig{
 				HeartbeatInterval:      10 * time.Second,
@@ -69,7 +67,6 @@ func main() {
 		Kafka: config.Kafka{
 			Brokers:                     []string{"kafka:9092"},
 			Topic:                       "example-topic",
-			ProducerBatchSize:           2000,
 			ProducerBatchBytes:          "900kb",
 			ProducerBatchTickerDuration: 10 * time.Second,
 			ReadTimeout:                 30 * time.Second,
@@ -80,7 +77,7 @@ func main() {
 		},
 	}
 
-	connector, err := mongokafka.NewConnector(cfg, nil)
+	connector, err := mongokafka.NewConnectorBuilder(cfg).Build()
 	if err != nil {
 		log.Fatal("failed to create connector:", err)
 	}

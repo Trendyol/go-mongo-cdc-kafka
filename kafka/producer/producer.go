@@ -1,14 +1,14 @@
 package producer
 
 import (
-	"github.com/Trendyol/go-mongo-cdc-kafka/helpers"
 	"time"
 
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
-	"github.com/Trendyol/go-mongo-cdc-kafka/kafka"
+	"github.com/Trendyol/go-mongo-cdc-kafka/helpers"
+	gKafka "github.com/Trendyol/go-mongo-cdc-kafka/kafka"
 	"github.com/Trendyol/go-mongo-cdc-kafka/metric"
 	"github.com/Trendyol/go-mongo-cdc/stream"
-	sKafka "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go"
 )
 
 type Producer struct {
@@ -16,16 +16,17 @@ type Producer struct {
 }
 
 func NewProducer(
-	kafkaClient kafka.Client,
-	config *config.Config,
+	kafkaClient gKafka.Client,
+	config *config.Connector,
 	metric metric.Metric,
-	sinkResponseHandler kafka.SinkResponseHandler,
-	completionHandler func(messages []sKafka.Message, err error),
+	checkpointCommit func(),
+	sinkResponseHandler gKafka.SinkResponseHandler,
+	completionHandler func(messages []kafka.Message, err error),
 ) (Producer, error) {
 	writer := kafkaClient.Producer(completionHandler)
 
 	if sinkResponseHandler != nil {
-		sinkResponseHandler.OnInit(&kafka.SinkResponseHandlerInitContext{
+		sinkResponseHandler.OnInit(&gKafka.SinkResponseHandlerInitContext{
 			Config:      config.Kafka,
 			KafkaClient: kafkaClient,
 			Writer:      writer,
@@ -39,6 +40,7 @@ func NewProducer(
 			config.Kafka.ProducerBatchSize,
 			int64(helpers.ResolveUnionIntOrStringValue(config.Kafka.ProducerBatchBytes)),
 			metric,
+			checkpointCommit,
 			sinkResponseHandler,
 		),
 	}, nil
@@ -51,7 +53,7 @@ func (p *Producer) StartBatch() {
 func (p *Producer) Produce(
 	ctx *stream.ListenerContext,
 	eventTime time.Time,
-	messages []sKafka.Message,
+	messages []kafka.Message,
 	isLastChunk bool,
 ) {
 	p.ProducerBatch.AddMessages(ctx, messages, eventTime, isLastChunk)

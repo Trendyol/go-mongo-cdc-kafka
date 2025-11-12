@@ -11,25 +11,25 @@ import (
 	"os"
 	"time"
 
-	"github.com/Trendyol/go-mongo-cdc/logger"
+	"github.com/segmentio/kafka-go/sasl"
 
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
+	"github.com/Trendyol/go-mongo-cdc/logger"
 	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
 type Client interface {
 	GetPartitions(topic string) ([]int, error)
-	CheckTopic(topic string) error
 	Producer(completionHandler func(messages []kafka.Message, err error)) *kafka.Writer
 	Consumer(topic string, partition int, startOffset int64) *kafka.Reader
+	CheckTopic(topic string) error
 }
 
 type client struct {
 	addr        net.Addr
 	kafkaClient *kafka.Client
-	config      *config.Config
+	config      *config.Connector
 	transport   *kafka.Transport
 	dialer      *kafka.Dialer
 }
@@ -173,7 +173,7 @@ func (c *client) Consumer(topic string, partition int, startOffset int64) *kafka
 	return kafka.NewReader(readerConfig)
 }
 
-func NewClient(config *config.Config) (Client, error) {
+func NewClient(config *config.Connector) Client {
 	addr := kafka.TCP(config.Kafka.Brokers...)
 
 	newClient := &client{
@@ -201,7 +201,7 @@ func NewClient(config *config.Config) (Client, error) {
 		)
 		if err != nil {
 			logger.Log.Error("error while creating new tls content, err: %v", err)
-			return nil, err
+			panic(err)
 		}
 
 		newClient.transport.TLS = tlsContent.config
@@ -214,14 +214,6 @@ func NewClient(config *config.Config) (Client, error) {
 			SASLMechanism: tlsContent.sasl,
 		}
 	}
-
 	newClient.kafkaClient.Transport = newClient.transport
-
-	if !config.Kafka.AllowAutoTopicCreation {
-		if err := newClient.CheckTopic(config.Kafka.Topic); err != nil {
-			return nil, err
-		}
-	}
-
-	return newClient, nil
+	return newClient
 }

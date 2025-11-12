@@ -21,7 +21,7 @@ func TestProducer(t *testing.T) {
 	mockLogger := &MockLogger{}
 	logger.Log = mockLogger
 
-	mockConfig := config.Config{
+	mockConfig := config.Connector{
 		Kafka: config.Kafka{
 			Brokers:                []string{"localhost:9092"},
 			ProducerBatchSize:      10,
