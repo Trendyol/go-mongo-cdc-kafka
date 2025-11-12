@@ -19,6 +19,7 @@ func NewProducer(
 	config *config.Connector,
 	metricsRecorder gKafka.MetricsRecorder,
 	checkpointCommit func(),
+	checkpointCommitBootstrap func(partitionID int),
 	sinkResponseHandler gKafka.SinkResponseHandler,
 	completionHandler func(messages []kafka.Message, err error),
 ) (Producer, error) {
@@ -40,6 +41,7 @@ func NewProducer(
 			int64(helpers.ResolveUnionIntOrStringValue(config.Kafka.ProducerBatchBytes)),
 			metricsRecorder,
 			checkpointCommit,
+			checkpointCommitBootstrap,
 			sinkResponseHandler,
 		),
 	}, nil
@@ -54,8 +56,10 @@ func (p *Producer) Produce(
 	eventTime time.Time,
 	messages []kafka.Message,
 	isLastChunk bool,
+	partitionID int,
+	isBootstrap bool,
 ) {
-	p.ProducerBatch.AddMessages(ctx, messages, eventTime, isLastChunk)
+	p.ProducerBatch.AddMessages(ctx, messages, eventTime, isLastChunk, partitionID, isBootstrap)
 }
 
 func (p *Producer) Close() error {

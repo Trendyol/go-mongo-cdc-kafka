@@ -131,9 +131,13 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 		mongoCDC.Commit()
 	}
 
+	checkpointCommitBootstrap := func(partitionID int) {
+		mongoCDC.CommitBootstrap(partitionID)
+	}
+
 	metricsRecorder := metric.NewMetricsRecorder()
 
-	prod, err := producer.NewProducer(kafkaClient, c, metricsRecorder, checkpointCommit, cb.sinkResponseHandler, cb.completionHandler)
+	prod, err := producer.NewProducer(kafkaClient, c, metricsRecorder, checkpointCommit, checkpointCommitBootstrap, cb.sinkResponseHandler, cb.completionHandler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create producer: %w", err)
 	}
@@ -186,10 +190,10 @@ func (c *connector) listener(ctx *stream.ListenerContext) error {
 		chunks := helpers.ChunkSliceWithSize[sKafka.Message](messages, batchSizeLimit)
 		lastChunkIndex := len(chunks) - 1
 		for idx, chunk := range chunks {
-			c.producer.Produce(ctx, event.EventTime, chunk, idx == lastChunkIndex)
+			c.producer.Produce(ctx, event.EventTime, chunk, idx == lastChunkIndex, ctx.PartitionID, ctx.IsBootstrap)
 		}
 	} else {
-		c.producer.Produce(ctx, event.EventTime, messages, true)
+		c.producer.Produce(ctx, event.EventTime, messages, true, ctx.PartitionID, ctx.IsBootstrap)
 	}
 
 	return nil

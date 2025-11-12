@@ -14,17 +14,19 @@ import (
 )
 
 type Batch struct {
-	sinkResponseHandler gKafka.SinkResponseHandler
-	batchTicker         *time.Ticker
-	Writer              *kafka.Writer
-	metricsRecorder     gKafka.MetricsRecorder
-	checkpointCommit    func()
-	messages            []kafka.Message
-	currentMessageBytes int64
-	batchTickerDuration time.Duration
-	batchLimit          int
-	batchBytes          int64
-	flushLock           sync.Mutex
+	sinkResponseHandler       gKafka.SinkResponseHandler
+	batchTicker               *time.Ticker
+	Writer                    *kafka.Writer
+	metricsRecorder           gKafka.MetricsRecorder
+	checkpointCommit          func()
+	checkpointCommitBootstrap func(partitionID int)
+	messages                  []kafka.Message
+	bootstrapPartitions       map[int]bool
+	currentMessageBytes       int64
+	batchTickerDuration       time.Duration
+	batchLimit                int
+	batchBytes                int64
+	flushLock                 sync.Mutex
 }
 
 func newBatch(
@@ -34,18 +36,21 @@ func newBatch(
 	batchBytes int64,
 	metricsRecorder gKafka.MetricsRecorder,
 	checkpointCommit func(),
+	checkpointCommitBootstrap func(partitionID int),
 	sinkResponseHandler gKafka.SinkResponseHandler,
 ) *Batch {
 	batch := &Batch{
-		batchTickerDuration: batchTime,
-		batchTicker:         time.NewTicker(batchTime),
-		metricsRecorder:     metricsRecorder,
-		checkpointCommit:    checkpointCommit,
-		messages:            make([]kafka.Message, 0, batchLimit),
-		Writer:              writer,
-		batchLimit:          batchLimit,
-		batchBytes:          batchBytes,
-		sinkResponseHandler: sinkResponseHandler,
+		batchTickerDuration:       batchTime,
+		batchTicker:               time.NewTicker(batchTime),
+		metricsRecorder:           metricsRecorder,
+		checkpointCommit:          checkpointCommit,
+		checkpointCommitBootstrap: checkpointCommitBootstrap,
+		messages:                  make([]kafka.Message, 0, batchLimit),
+		bootstrapPartitions:       make(map[int]bool),
+		Writer:                    writer,
+		batchLimit:                batchLimit,
+		batchBytes:                batchBytes,
+		sinkResponseHandler:       sinkResponseHandler,
 	}
 	return batch
 }
@@ -64,10 +69,13 @@ func (b *Batch) Close() {
 	b.FlushMessages()
 }
 
-func (b *Batch) AddMessages(ctx *stream.ListenerContext, messages []kafka.Message, eventTime time.Time, isLastChunk bool) {
+func (b *Batch) AddMessages(ctx *stream.ListenerContext, messages []kafka.Message, eventTime time.Time, isLastChunk bool, partitionID int, isBootstrap bool) {
 	b.flushLock.Lock()
 	b.messages = append(b.messages, messages...)
 	b.currentMessageBytes += totalSizeOfMessages(messages)
+	if isBootstrap {
+		b.bootstrapPartitions[partitionID] = true
+	}
 	if isLastChunk {
 		ctx.Ack()
 	}
@@ -115,8 +123,25 @@ func (b *Batch) FlushMessages() {
 		b.messages = b.messages[:0]
 		b.currentMessageBytes = 0
 		b.batchTicker.Reset(b.batchTickerDuration)
+
+		bootstrapPartitions := b.bootstrapPartitions
+		b.bootstrapPartitions = make(map[int]bool)
+
+		b.checkpointCommit()
+		b.commitBootstrapCheckpoints(bootstrapPartitions)
+	} else {
+		b.checkpointCommit()
 	}
-	b.checkpointCommit()
+}
+
+func (b *Batch) commitBootstrapCheckpoints(bootstrapPartitions map[int]bool) {
+	if bootstrapPartitions == nil || len(bootstrapPartitions) == 0 {
+		return
+	}
+
+	for partitionID := range bootstrapPartitions {
+		b.checkpointCommitBootstrap(partitionID)
+	}
 }
 
 func (b *Batch) handleWriteError(writeErrors kafka.WriteErrors) {
