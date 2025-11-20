@@ -31,7 +31,7 @@ clean:
 
 .PHONY: example
 example:
-	go run example/simple/main.go
+	go run example/complete-builder/main.go
 
 .PHONY: deps
 deps:
