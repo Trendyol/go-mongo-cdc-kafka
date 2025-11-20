@@ -42,9 +42,6 @@ jobs:
           make init
           make lint
 
-      - name: Install dependencies
-        run: go get .
-
       - name: Build
         run: go build -v ./...
 
