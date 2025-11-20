@@ -137,7 +137,15 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 
 	metricsRecorder := metric.NewMetricsRecorder()
 
-	prod, err := producer.NewProducer(kafkaClient, c, metricsRecorder, checkpointCommit, checkpointCommitBootstrap, cb.sinkResponseHandler, cb.completionHandler)
+	prod, err := producer.NewProducer(
+		kafkaClient,
+		c,
+		metricsRecorder,
+		checkpointCommit,
+		checkpointCommitBootstrap,
+		cb.sinkResponseHandler,
+		cb.completionHandler,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create producer: %w", err)
 	}

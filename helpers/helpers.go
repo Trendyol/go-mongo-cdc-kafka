@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,10 @@ func ResolveUnionIntOrStringValue(input any) int {
 	case int:
 		return value
 	case uint:
+		if value > math.MaxInt {
+			logger.Log.Error("uint value exceeds max int: %d", value)
+			panic("uint value exceeds max int")
+		}
 		return int(value)
 	case string:
 		intValue, err := strconv.ParseInt(value, 10, 64)

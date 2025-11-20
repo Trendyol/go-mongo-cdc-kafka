@@ -51,7 +51,6 @@ func main() {
 	connector, err := mongokafka.NewConnectorBuilder(cfg).
 		SetSinkResponseHandler(rejectionLogHandler).
 		Build()
-
 	if err != nil {
 		log.Fatal("failed to create connector:", err)
 	}

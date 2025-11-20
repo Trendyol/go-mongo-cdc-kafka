@@ -21,9 +21,12 @@ func main() {
 
 	zapLogger, err := zapConfig.Build()
 	if err != nil {
-		log.Fatal("failed to create zap logger:", err)
+		log.Printf("failed to create zap logger: %v", err)
+		return
 	}
-	defer zapLogger.Sync()
+	defer func() {
+		_ = zapLogger.Sync()
+	}()
 
 	cfg := config.Connector{
 		CDC: cdcConfig.Config{
@@ -58,9 +61,9 @@ func main() {
 	connector, err := mongokafka.NewConnectorBuilder(cfg).
 		SetLogger(zapLogger).
 		Build()
-
 	if err != nil {
-		log.Fatal("failed to create connector:", err)
+		log.Printf("failed to create connector: %v", err)
+		return
 	}
 
 	defer connector.Close()

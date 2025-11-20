@@ -14,4 +14,3 @@ func DefaultCompletion(messages []kafka.Message, err error) {
 		}
 	}
 }
-

@@ -115,5 +115,3 @@ func TestChunkSliceWithSize_RealWorldScenario(t *testing.T) {
 		t.Errorf("Total elements across chunks should be 5000, got %d", totalElements)
 	}
 }
-
-

@@ -45,7 +45,6 @@ func main() {
 	connector, err := mongokafka.NewConnectorBuilder(cfg).
 		SetCompletionHandler(producer.DefaultCompletion).
 		Build()
-
 	if err != nil {
 		log.Fatal("failed to create connector:", err)
 	}

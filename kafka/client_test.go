@@ -3,12 +3,12 @@ package kafka
 import (
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-mongo-cdc-kafka/config"
-	"github.com/Trendyol/go-mongo-cdc/logger"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/Trendyol/go-mongo-cdc-kafka/config"
+	"github.com/Trendyol/go-mongo-cdc/logger"
 	"github.com/segmentio/kafka-go"
 )
 

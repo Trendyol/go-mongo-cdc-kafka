@@ -22,4 +22,3 @@ type SinkResponseHandlerContext struct {
 	Message *message.KafkaMessage
 	Err     error
 }
-

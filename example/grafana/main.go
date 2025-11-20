@@ -94,13 +94,17 @@ func seedInitialData() {
 	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal("failed to connect to MongoDB:", err)
+		log.Printf("failed to connect to MongoDB: %v", err)
+		return
 	}
-	defer client.Disconnect(ctx)
+	defer func() {
+		_ = client.Disconnect(ctx)
+	}()
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		log.Fatal("failed to ping MongoDB:", err)
+		log.Printf("failed to ping MongoDB: %v", err)
+		return
 	}
 
 	collection := client.Database("exampleDB").Collection("exampleCollection")
@@ -148,7 +152,6 @@ func seedInitialData() {
 }
 
 func continuousSeedMongoDB() {
-	// Wait for CDC to start and bootstrap to complete
 	time.Sleep(5 * time.Second)
 
 	ctx := context.Background()
@@ -156,74 +159,78 @@ func continuousSeedMongoDB() {
 	clientOptions := options.Client().ApplyURI("mongodb://mongodb:27017")
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal("failed to connect to MongoDB:", err)
+		log.Printf("failed to connect to MongoDB: %v", err)
+		return
 	}
-	defer client.Disconnect(ctx)
+	defer func() {
+		_ = client.Disconnect(ctx)
+	}()
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		log.Fatal("failed to ping MongoDB:", err)
+		log.Printf("failed to ping MongoDB: %v", err)
+		return
 	}
 
 	collection := client.Database("exampleDB").Collection("exampleCollection")
 
 	log.Println("Starting continuous data operations...")
 
-	// Continuous operations starting from 20001
 	counter := 20000
 	for {
 		counter++
-		documentID := fmt.Sprintf("doc-%d", counter)
-
-		document := bson.M{
-			"_id":       documentID,
-			"counter":   counter,
-			"message":   "Continuous Operation",
-			"category":  fmt.Sprintf("category-%d", counter%10),
-			"status":    "active",
-			"timestamp": time.Now(),
-		}
-
-		opts := options.Update().SetUpsert(true)
-		filter := bson.M{"_id": documentID}
-		update := bson.M{"$set": document}
-
-		_, err := collection.UpdateOne(ctx, filter, update, opts)
+		err := performContinuousOperation(ctx, collection, counter)
 		if err != nil {
-			log.Printf("Error upserting document: %v", err)
-		} else {
-			log.Printf("Upserted document: %s", documentID)
-		}
-
-		// Every 10 operations, delete an old document
-		if counter%10 == 0 {
-			deleteID := fmt.Sprintf("doc-%d", counter-5)
-			_, err := collection.DeleteOne(ctx, bson.M{"_id": deleteID})
-			if err != nil {
-				log.Printf("Error deleting document: %v", err)
-			} else {
-				log.Printf("Deleted document: %s", deleteID)
-			}
-		}
-
-		// Every 20 operations, update a random existing document
-		if counter%20 == 0 {
-			updateID := fmt.Sprintf("doc-%d", counter-15)
-			updateDoc := bson.M{
-				"$set": bson.M{
-					"message":      "Updated Document",
-					"status":       "updated",
-					"last_updated": time.Now(),
-				},
-			}
-			_, err := collection.UpdateOne(ctx, bson.M{"_id": updateID}, updateDoc)
-			if err != nil {
-				log.Printf("Error updating document: %v", err)
-			} else {
-				log.Printf("Updated document: %s", updateID)
-			}
+			log.Printf("Error during continuous operation: %v", err)
 		}
 
 		time.Sleep(25 * time.Millisecond)
 	}
+}
+
+func performContinuousOperation(ctx context.Context, collection *mongo.Collection, counter int) error {
+	documentID := fmt.Sprintf("doc-%d", counter)
+
+	document := bson.M{
+		"_id":       documentID,
+		"counter":   counter,
+		"message":   "Continuous Operation",
+		"category":  fmt.Sprintf("category-%d", counter%10),
+		"status":    "active",
+		"timestamp": time.Now(),
+	}
+
+	opts := options.Update().SetUpsert(true)
+	filter := bson.M{"_id": documentID}
+	update := bson.M{"$set": document}
+
+	_, err := collection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		return err
+	}
+
+	if counter%10 == 0 {
+		deleteID := fmt.Sprintf("doc-%d", counter-5)
+		_, err := collection.DeleteOne(ctx, bson.M{"_id": deleteID})
+		if err != nil {
+			return err
+		}
+	}
+
+	if counter%20 == 0 {
+		updateID := fmt.Sprintf("doc-%d", counter-15)
+		updateDoc := bson.M{
+			"$set": bson.M{
+				"message":      "Updated Document",
+				"status":       "updated",
+				"last_updated": time.Now(),
+			},
+		}
+		_, err := collection.UpdateOne(ctx, bson.M{"_id": updateID}, updateDoc)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

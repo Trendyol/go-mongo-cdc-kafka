@@ -69,7 +69,14 @@ func (b *Batch) Close() {
 	b.FlushMessages()
 }
 
-func (b *Batch) AddMessages(ctx *stream.ListenerContext, messages []kafka.Message, eventTime time.Time, isLastChunk bool, partitionID int, isBootstrap bool) {
+func (b *Batch) AddMessages(
+	ctx *stream.ListenerContext,
+	messages []kafka.Message,
+	eventTime time.Time,
+	isLastChunk bool,
+	partitionID int,
+	isBootstrap bool,
+) {
 	b.flushLock.Lock()
 	b.messages = append(b.messages, messages...)
 	b.currentMessageBytes += totalSizeOfMessages(messages)
@@ -135,7 +142,7 @@ func (b *Batch) FlushMessages() {
 }
 
 func (b *Batch) commitBootstrapCheckpoints(bootstrapPartitions map[int]bool) {
-	if bootstrapPartitions == nil || len(bootstrapPartitions) == 0 {
+	if len(bootstrapPartitions) == 0 {
 		return
 	}
 

@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/Trendyol/go-mongo-cdc/logger"
-	jsoniter "github.com/json-iterator/go"
 	"log"
 	"time"
+
+	"github.com/Trendyol/go-mongo-cdc/logger"
+	jsoniter "github.com/json-iterator/go"
 
 	mongokafka "github.com/Trendyol/go-mongo-cdc-kafka"
 	"github.com/Trendyol/go-mongo-cdc-kafka/config"
@@ -77,9 +78,12 @@ func main() {
 
 	zapLogger, err := zapConfig.Build()
 	if err != nil {
-		log.Fatal("failed to create zap logger:", err)
+		log.Printf("failed to create zap logger: %v", err)
+		return
 	}
-	defer zapLogger.Sync()
+	defer func() {
+		_ = zapLogger.Sync()
+	}()
 
 	cfg := config.Connector{
 		CDC: cdcConfig.Config{
@@ -121,9 +125,9 @@ func main() {
 		SetSinkResponseHandler(&customSinkResponseHandler{}).
 		SetCompletionHandler(customCompletionHandler).
 		Build()
-
 	if err != nil {
-		log.Fatal("failed to create connector:", err)
+		log.Printf("failed to create connector: %v", err)
+		return
 	}
 
 	defer connector.Close()
