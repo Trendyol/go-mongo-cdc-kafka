@@ -1,4 +1,4 @@
-## Go Mongo CDC Kafka
+## Go Mongo CDC Kafka [![Go Reference](https://pkg.go.dev/badge/github.com/Trendyol/go-mongo-cdc-kafka.svg)](https://pkg.go.dev/github.com/Trendyol/go-mongo-cdc-kafka) [![Go Report Card](https://goreportcard.com/badge/github.com/Trendyol/go-mongo-cdc-kafka)](https://goreportcard.com/report/github.com/Trendyol/go-mongo-cdc-kafka) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/go-mongo-cdc-kafka/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/go-mongo-cdc-kafka)
 
 **Go Mongo CDC Kafka** is a Go connector library that captures real-time changes from MongoDB using Change Streams and publishes them to Kafka.  
 It builds on top of `go-mongo-cdc` for MongoDB CDC and adds a configurable Kafka producer layer.
