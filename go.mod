@@ -3,7 +3,7 @@ module github.com/Trendyol/go-mongo-cdc-kafka
 go 1.25.1
 
 require (
-	github.com/Trendyol/go-mongo-cdc v0.0.0-00010101000000-000000000000
+	github.com/Trendyol/go-mongo-cdc v0.0.0-20251120183520-0957bceb503e
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.22.0
 	github.com/segmentio/kafka-go v0.4.47
@@ -38,5 +38,3 @@ require (
 	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/Trendyol/go-mongo-cdc => ../go-mongo-cdc
