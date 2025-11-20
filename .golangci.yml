@@ -1,25 +1,49 @@
-run:
-  timeout: 5m
-  tests: true
-
+version: "2"
 linters:
+  default: none
   enable:
-    - gofmt
-    - govet
+    - bodyclose
+    - dupl
     - errcheck
-    - staticcheck
-    - unused
-    - gosimple
+    - exhaustive
+    - funlen
+    - goconst
+    - gocritic
+    - gocyclo
+    - govet
     - ineffassign
-    - typecheck
-
-linters-settings:
-  errcheck:
-    check-blank: false
-    check-type-assertions: false
-
-issues:
-  exclude-use-default: false
-  max-issues-per-linter: 0
-  max-same-issues: 0
-
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - gosec
+  settings:
+    funlen:
+      lines: 70
+    lll:
+      line-length: 140
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofumpt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
