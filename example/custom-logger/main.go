@@ -41,6 +41,7 @@ func main() {
 			},
 			Partition: cdcConfig.PartitionConfig{
 				TotalPartition: 5,
+				ConsumerGroup:  "consumerGroup",
 			},
 			Logger: cdcConfig.LoggerConfig{
 				LogLevel: "info",

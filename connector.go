@@ -161,6 +161,12 @@ func printConfiguration(config config.Kafka) {
 }
 
 func (c *connector) listener(ctx *stream.ListenerContext) error {
+	select {
+	case <-ctx.Context.Done():
+		return ctx.Context.Err()
+	default:
+	}
+
 	event := mongo.NewEvent(ctx.Message, ctx.PartitionID)
 
 	kafkaMessages := c.mapper(event)

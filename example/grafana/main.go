@@ -46,8 +46,7 @@ func main() {
 				},
 			},
 			Metric: cdcConfig.MetricConfig{
-				Port:               8080,
-				CollectionInterval: 2 * time.Second,
+				Port: 8080,
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
 				TokenSaveInterval:     5 * time.Second,
@@ -58,7 +57,8 @@ func main() {
 				HeartbeatInterval:      10 * time.Second,
 				WorkerTimeout:          90 * time.Second,
 				RebalanceCheckInterval: 10 * time.Second,
-				TotalPartition:         10,
+				TotalPartition:         5,
+				ConsumerGroup:          "consumerGroup",
 			},
 			Logger: cdcConfig.LoggerConfig{
 				LogLevel: "debug",
