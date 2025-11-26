@@ -166,10 +166,10 @@ For a ready-to-use rejection log implementation, you can use `kafka.NewRejection
 
 Below is the list of Prometheus metrics exposed by the Kafka side of the connector:
 
-| Metric Name                                           | Type   | Description                                        | Labels |
-|-------------------------------------------------------|--------|----------------------------------------------------|--------|
-| `go_mongo_cdc_kafka_kafka_connector_latency_ms_current`        | Gauge  | Time spent from CDC event to Kafka write (ms).     | N/A    |
-| `go_mongo_cdc_kafka_kafka_connector_batch_produce_latency_ms_current` | Gauge  | Time to produce messages in the current batch (ms). | N/A    |
+| Metric Name                                                           | Type  | Description                                         | Labels |
+|-----------------------------------------------------------------------|-------|-----------------------------------------------------|--------|
+| `go_mongo_cdc_kafka_kafka_connector_latency_ms_current`               | Gauge | Time spent from CDC event to Kafka write (ms).      | N/A    |
+| `go_mongo_cdc_kafka_kafka_connector_batch_produce_latency_ms_current` | Gauge | Time to produce messages in the current batch (ms). | N/A    |
 
 With the `example/grafana` setup you can:
 
