@@ -49,9 +49,7 @@ func main() {
 				Port: 8080,
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
-				TokenSaveInterval:     5 * time.Second,
-				BootstrapSaveCount:    1000,
-				BootstrapSaveInterval: 10 * time.Second,
+				BootstrapQueryBatchSize: 1000,
 			},
 			Partition: cdcConfig.PartitionConfig{
 				HeartbeatInterval:      10 * time.Second,

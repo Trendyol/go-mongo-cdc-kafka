@@ -34,15 +34,13 @@ func main() {
 				Port: 8080,
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
-				TokenSaveInterval:     10 * time.Second,
-				BootstrapSaveCount:    5000,
-				BootstrapSaveInterval: 10 * time.Second,
+				BootstrapQueryBatchSize: 5000,
 			},
 			Partition: cdcConfig.PartitionConfig{
 				HeartbeatInterval:      10 * time.Second,
 				WorkerTimeout:          90 * time.Second,
 				RebalanceCheckInterval: 10 * time.Second,
-				TotalPartition:         5,
+				TotalPartition:         15,
 			},
 			Logger: cdcConfig.LoggerConfig{
 				LogLevel: "info",

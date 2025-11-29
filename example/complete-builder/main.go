@@ -95,16 +95,14 @@ func main() {
 				},
 			},
 			Checkpoint: cdcConfig.CheckpointConfig{
-				TokenSaveInterval:     10 * time.Second,
-				BootstrapSaveCount:    5000,
-				BootstrapSaveInterval: 10 * time.Second,
+				BootstrapQueryBatchSize: 5000,
 			},
 			Partition: cdcConfig.PartitionConfig{
-				TotalPartition: 5,
+				TotalPartition: 15,
 				ConsumerGroup:  "consumerGroup",
 			},
 			Logger: cdcConfig.LoggerConfig{
-				LogLevel: "info",
+				LogLevel: "debug",
 			},
 		},
 		Kafka: config.Kafka{

@@ -33,11 +33,11 @@ cfg := config.Connector{
         },
         Checkpoint: cdcConfig.CheckpointConfig{
             TokenSaveInterval:     10 * time.Second,
-            BootstrapSaveCount:    5000,
+            BootstrapQueryBatchSize:    5000,
             BootstrapSaveInterval: 10 * time.Second,
         },
         Partition: cdcConfig.PartitionConfig{
-            TotalPartition: 5,
+            TotalPartition: 15,
             ConsumerGroup:  "consumerGroup",
         },
         Logger: cdcConfig.LoggerConfig{
