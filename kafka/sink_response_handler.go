@@ -13,9 +13,9 @@ type SinkResponseHandler interface {
 }
 
 type SinkResponseHandlerInitContext struct {
-	Config      config.Kafka
 	KafkaClient Client
 	Writer      *kafka.Writer
+	Config      config.Kafka
 }
 
 type SinkResponseHandlerContext struct {

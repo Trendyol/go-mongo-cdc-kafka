@@ -7,8 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
+	"sync/atomic"
+	"syscall"
 
 	jsoniter "github.com/json-iterator/go"
 	"go.uber.org/zap"
@@ -36,24 +39,50 @@ type connector struct {
 	mapper   Mapper
 	producer producer.Producer
 	config   *config.Connector
+	closing  int32
 }
 
 func (c *connector) Start(ctx context.Context) {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
+	defer stop()
+
 	logger.Log.Info("Starting CDC to Kafka connector")
 
 	c.producer.StartBatch()
 
-	c.mongoCDC.Start(ctx)
+	cdcCtx, cdcCancel := context.WithCancel(context.Background())
+	defer cdcCancel()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			logger.Log.Debug("Shutdown signal received: interrupt, initiating graceful shutdown...")
+			atomic.StoreInt32(&c.closing, 1)
+
+			logger.Log.Debug("Stopped accepting new events, waiting for in-flight events to complete...")
+
+			if err := c.producer.Close(); err != nil {
+				logger.Log.Error("failed to close producer: %v", err)
+			}
+
+			logger.Log.Debug("Producer closed, committing final checkpoints before closing CDC")
+			cdcCancel()
+		case <-cdcCtx.Done():
+		}
+	}()
+
+	c.mongoCDC.Start(cdcCtx)
 }
 
 func (c *connector) Close() {
 	logger.Log.Info("Closing CDC to Kafka connector")
-
-	c.mongoCDC.Close()
+	atomic.StoreInt32(&c.closing, 1)
 
 	if err := c.producer.Close(); err != nil {
 		logger.Log.Error("failed to close producer: %v", err)
 	}
+
+	c.mongoCDC.Close()
 
 	logger.Log.Info("CDC to Kafka connector closed")
 }
@@ -169,6 +198,11 @@ func printConfiguration(config config.Kafka) {
 }
 
 func (c *connector) listener(ctx *stream.ListenerContext) error {
+	if atomic.LoadInt32(&c.closing) == 1 {
+		logger.Log.Debug("Rejecting new event during shutdown - documentId: %v, partitionId: %d", ctx.Message.DocumentID, ctx.PartitionID)
+		return nil
+	}
+
 	select {
 	case <-ctx.Context.Done():
 		return ctx.Context.Err()

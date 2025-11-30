@@ -1,5 +1,5 @@
-github.com/Trendyol/go-mongo-cdc v0.0.0-20251121132804-d4439750a456 h1:0m/knepwDHohQu2juPMOz/EvtP59SZg8aQjA7JVOqX4=
-github.com/Trendyol/go-mongo-cdc v0.0.0-20251121132804-d4439750a456/go.mod h1:qVsy1dWEXwjQ8rOEE2YkYIlEpTHVb0enTqwkwnvYIKA=
+github.com/Trendyol/go-mongo-cdc v0.0.0-20251130095434-0bc10d94a13b h1:zKrWZaAeVETbX9jeFovMHybkfY4QNRfcEMz2ymzQCXM=
+github.com/Trendyol/go-mongo-cdc v0.0.0-20251130095434-0bc10d94a13b/go.mod h1:qVsy1dWEXwjQ8rOEE2YkYIlEpTHVb0enTqwkwnvYIKA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

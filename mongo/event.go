@@ -9,19 +9,18 @@ import (
 )
 
 type Event struct {
-	OperationType message.OperationType
-	ClusterTime   primitive.Timestamp
-	Database      string
-	Collection    string
+	EventTime     time.Time
 	DocumentID    interface{}
 	FullDocument  bson.M
-	EventTime     time.Time
+	OperationType message.OperationType
+	Database      string
+	Collection    string
 	PartitionID   int
-
-	IsInsert  bool
-	IsUpdate  bool
-	IsDelete  bool
-	IsReplace bool
+	ClusterTime   primitive.Timestamp
+	IsInsert      bool
+	IsUpdate      bool
+	IsDelete      bool
+	IsReplace     bool
 }
 
 func NewEvent(msg message.Message, partitionID int) Event {

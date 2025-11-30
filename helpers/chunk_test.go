@@ -8,8 +8,8 @@ func TestChunkSliceWithSize(t *testing.T) {
 	tests := []struct {
 		name      string
 		slice     []int
-		chunkSize int
 		want      [][]int
+		chunkSize int
 	}{
 		{
 			name:      "empty slice",

@@ -14,14 +14,14 @@ import (
 )
 
 type Batch struct {
+	metricsRecorder           gKafka.MetricsRecorder
 	sinkResponseHandler       gKafka.SinkResponseHandler
+	bootstrapPartitions       map[int]bool
 	batchTicker               *time.Ticker
 	Writer                    *kafka.Writer
-	metricsRecorder           gKafka.MetricsRecorder
 	checkpointCommit          func()
 	checkpointCommitBootstrap func(partitionID int)
 	messages                  []kafka.Message
-	bootstrapPartitions       map[int]bool
 	currentMessageBytes       int64
 	batchTickerDuration       time.Duration
 	batchLimit                int
