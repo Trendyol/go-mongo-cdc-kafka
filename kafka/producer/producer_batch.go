@@ -127,6 +127,10 @@ func (b *Batch) FlushMessages() {
 			}
 		}
 
+		if err != nil {
+			return
+		}
+
 		b.messages = b.messages[:0]
 		b.currentMessageBytes = 0
 		b.batchTicker.Reset(b.batchTickerDuration)
