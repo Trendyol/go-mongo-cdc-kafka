@@ -179,6 +179,8 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 		return nil, fmt.Errorf("failed to create producer: %w", err)
 	}
 
+	mongoCDC.SetEventHandler(NewCdcEventHandler(prod.ProducerBatch))
+
 	connector.producer = prod
 
 	return connector, nil
@@ -199,7 +201,7 @@ func printConfiguration(config config.Kafka) {
 
 func (c *connector) listener(ctx *stream.ListenerContext) error {
 	if atomic.LoadInt32(&c.closing) == 1 {
-		logger.Log.Debug("Rejecting new event during shutdown - documentId: %v, partitionId: %d", ctx.Message.DocumentID, ctx.PartitionID)
+		//logger.Log.Debug("Rejecting new event during shutdown - documentId: %v, partitionId: %d", ctx.Message.DocumentID, ctx.PartitionID)
 		return nil
 	}
 

@@ -27,6 +27,10 @@ type Batch struct {
 	batchLimit                int
 	batchBytes                int64
 	flushLock                 sync.Mutex
+	rebalanceMu               sync.RWMutex
+	rebalancePaused           bool
+	rebalanceResumeCh         chan struct{}
+	activeAdds                sync.WaitGroup
 }
 
 func newBatch(
@@ -65,8 +69,17 @@ func (b *Batch) StartBatchTicker() {
 }
 
 func (b *Batch) Close() {
+	b.ResumeAfterRebalance()
 	b.batchTicker.Stop()
 	b.FlushMessages()
+}
+
+func (b *Batch) PrepareStartRebalancing() {
+	_ = b.PauseForRebalance(context.Background())
+}
+
+func (b *Batch) PrepareEndRebalancing() {
+	b.ResumeAfterRebalance()
 }
 
 func (b *Batch) AddMessages(
@@ -77,6 +90,27 @@ func (b *Batch) AddMessages(
 	partitionID int,
 	isBootstrap bool,
 ) {
+	b.rebalanceMu.RLock()
+	// Check pause status under read lock first
+	if !b.rebalancePaused {
+		b.activeAdds.Add(1)
+		b.rebalanceMu.RUnlock()
+	} else {
+		// If paused, wait for resume signal
+		resumeCh := b.rebalanceResumeCh
+		b.rebalanceMu.RUnlock()
+
+		select {
+		case <-resumeCh:
+			// Rebalance completed, proceed
+		case <-ctx.Context.Done():
+			return
+		}
+		b.activeAdds.Add(1)
+	}
+
+	defer b.activeAdds.Done()
+
 	b.flushLock.Lock()
 	b.messages = append(b.messages, messages...)
 	b.currentMessageBytes += totalSizeOfMessages(messages)
@@ -95,6 +129,43 @@ func (b *Batch) AddMessages(
 	if len(b.messages) >= b.batchLimit || b.currentMessageBytes >= b.batchBytes {
 		b.FlushMessages()
 	}
+}
+
+func (b *Batch) PauseForRebalance(ctx context.Context) error {
+	b.rebalanceMu.Lock()
+	if b.rebalancePaused {
+		resumeCh := b.rebalanceResumeCh
+		b.rebalanceMu.Unlock()
+
+		select {
+		case <-resumeCh:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	resumeCh := make(chan struct{})
+	b.rebalancePaused = true
+	b.rebalanceResumeCh = resumeCh
+	b.rebalanceMu.Unlock()
+
+	b.activeAdds.Wait()
+	b.FlushMessages()
+	return nil
+}
+
+func (b *Batch) ResumeAfterRebalance() {
+	b.rebalanceMu.Lock()
+	if !b.rebalancePaused {
+		b.rebalanceMu.Unlock()
+		return
+	}
+
+	close(b.rebalanceResumeCh)
+	b.rebalancePaused = false
+	b.rebalanceResumeCh = nil
+	b.rebalanceMu.Unlock()
 }
 
 func (b *Batch) FlushMessages() {
