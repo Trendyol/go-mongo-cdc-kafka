@@ -181,6 +181,10 @@ func (cb *ConnectorBuilder) Build() (Connector, error) {
 
 	connector.producer = prod
 
+	mongoCDC.SetEventHandler(&CdcEventHandler{
+		producerBatch: prod.ProducerBatch,
+	})
+
 	return connector, nil
 }
 
