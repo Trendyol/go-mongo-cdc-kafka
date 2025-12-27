@@ -17,6 +17,7 @@ type Batch struct {
 	metricsRecorder           gKafka.MetricsRecorder
 	sinkResponseHandler       gKafka.SinkResponseHandler
 	bootstrapPartitions       map[int]bool
+	rebalancingPartitions     map[int]bool
 	batchTicker               *time.Ticker
 	Writer                    *kafka.Writer
 	checkpointCommit          func()
@@ -47,6 +48,7 @@ func newBatch(
 		checkpointCommitBootstrap: checkpointCommitBootstrap,
 		messages:                  make([]kafka.Message, 0, batchLimit),
 		bootstrapPartitions:       make(map[int]bool),
+		rebalancingPartitions:     make(map[int]bool),
 		Writer:                    writer,
 		batchLimit:                batchLimit,
 		batchBytes:                batchBytes,
@@ -69,6 +71,18 @@ func (b *Batch) Close() {
 	b.FlushMessages()
 }
 
+func (b *Batch) PreparePartitionRebalancing(partitionID int) {
+	b.flushLock.Lock()
+	b.rebalancingPartitions[partitionID] = true
+	b.flushLock.Unlock()
+}
+
+func (b *Batch) EndPartitionRebalancing(partitionID int) {
+	b.flushLock.Lock()
+	defer b.flushLock.Unlock()
+	delete(b.rebalancingPartitions, partitionID)
+}
+
 func (b *Batch) AddMessages(
 	ctx *stream.ListenerContext,
 	messages []kafka.Message,
@@ -78,6 +92,11 @@ func (b *Batch) AddMessages(
 	isBootstrap bool,
 ) {
 	b.flushLock.Lock()
+	if b.rebalancingPartitions[partitionID] {
+		logger.Log.Debug("could not add new message to batch while partition is rebalancing - partitionId: %d", partitionID)
+		b.flushLock.Unlock()
+		return
+	}
 	b.messages = append(b.messages, messages...)
 	b.currentMessageBytes += totalSizeOfMessages(messages)
 	if isBootstrap {
